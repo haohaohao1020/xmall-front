@@ -3,6 +3,10 @@ import http from './public'
 export const getAllGoods = (params) => {
   return http.fetchGet('/goods/allGoods', params)
 }
+// 根据分类获取商品列表
+export const getGoodsByCategory = (params) => {
+  return http.fetchGet('/goods/goodsByCategory', params)
+}
 // 获取购物车列表
 export const getCartList = (params) => {
   return http.fetchPost('/member/cartList', params)
@@ -63,6 +67,10 @@ export const payMent = (params) => {
 export const orderList = (params) => {
   return http.fetchGet('/member/orderList', params)
 }
+// 根据订单状态获取订单列表
+export const getOrderByStatus = (params) => {
+  return http.fetchGet('/member/orderByStatus', params)
+}
 // 获取单个订单详情
 export const getOrderDet = (params) => {
   return http.fetchGet('/member/orderDetail', params)
@@ -86,4 +94,20 @@ export const getSearch = (params) => {
 // 快速搜索
 export const getQuickSearch = (params) => {
   return http.fetchGet('/goods/quickSearch', params)
+}
+// 添加收藏
+export const addFavorite = (params) => {
+  return http.fetchPost('/member/addFavorite', params)
+}
+// 取消收藏
+export const delFavorite = (params) => {
+  return http.fetchPost('/member/delFavorite', params)
+}
+// 获取收藏列表
+export const getFavoriteList = (params) => {
+  return http.fetchGet('/member/favoriteList', params)
+}
+// 检查是否收藏
+export const checkFavorite = (params) => {
+  return http.fetchGet('/member/checkFavorite', params)
 }

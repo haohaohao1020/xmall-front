@@ -23,11 +23,27 @@
               </el-autocomplete>
               <router-link to="/goods"><a @click="changePage(2)">全部商品</a></router-link>
               <router-link to="/thanks"><a @click="changePage(4)">捐赠</a></router-link>
-              <!-- <router-link to="/">Smartisan M1 / M1L</router-link>
-              <router-link to="/">Smartisan OS</router-link>
-              <router-link to="/">欢喜云</router-link>
-              <router-link to="/">应用下载</router-link>
-              <router-link to="/">官方论坛</router-link> -->
+              <el-dropdown trigger="hover" @command="handleCategoryCommand" class="category-dropdown">
+                <span class="el-dropdown-link">
+                  商品分类<i class="el-icon-arrow-down el-icon--right"></i>
+                </span>
+                <el-dropdown-menu slot="dropdown" class="category-menu">
+                  <el-dropdown-item v-for="cat in categoryList" :key="cat.id" :command="{type: 'parent', data: cat}">
+                    <div class="category-item">
+                      <span class="category-name">{{ cat.name }}</span>
+                      <div class="sub-category" v-if="cat.children && cat.children.length">
+                        <span 
+                          v-for="sub in cat.children" 
+                          :key="sub.id" 
+                          class="sub-tag"
+                          @click.stop="handleSubCategoryClick(sub, cat)">
+                          {{ sub.name }}
+                        </span>
+                      </div>
+                    </div>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
             </div>
             <div class="nav-aside" ref="aside" :class="{fixed:st}">
               <div class="user pr">
@@ -130,16 +146,32 @@
             <div class="w">
               <ul class="nav-list2">
                 <li>
-                  <router-link to="/"><a @click="changGoods(-1)" :class="{active:choosePage===-1}">首页</a></router-link>
+                  <router-link to="/"><a @click="resetCategory" :class="{active:choosePage===-1}">首页</a></router-link>
                 </li>
                 <li>
-                  <a @click="changGoods(-2)" :class="{active:choosePage===-2}">全部</a>
+                  <a @click="changGoods(-2); resetCategory()" :class="{active:choosePage===-2}">全部</a>
                 </li>
                 <li v-for="(item,i) in navList" :key="i">
-                  <a @click="changGoods(i, item)" :class="{active:i===choosePage}">{{item.picUrl}}</a>
+                  <a @click="changGoods(i, item); resetCategory()" :class="{active:i===choosePage}">{{item.picUrl}}</a>
                 </li>
               </ul>
-              <div></div>
+              <div class="category-nav" v-if="currentCategory">
+                <span class="category-title">{{ currentCategory.name }}：</span>
+                <span 
+                  class="sub-category-item" 
+                  :class="{active: !currentSubCategory}"
+                  @click="handleSubCategoryClick(null, currentCategory)">
+                  全部
+                </span>
+                <span 
+                  v-for="sub in currentCategory.children" 
+                  :key="sub.id" 
+                  class="sub-category-item"
+                  :class="{active: currentSubCategory && currentSubCategory.id === sub.id}"
+                  @click="handleSubCategoryClick(sub, currentCategory)">
+                  {{ sub.name }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -171,7 +203,56 @@
         searchResults: [],
         timeout: null,
         token: '',
-        navList: []
+        navList: [],
+        categoryList: [
+          {
+            id: 1,
+            name: '手机数码',
+            children: [
+              { id: 11, name: '手机' },
+              { id: 12, name: '平板电脑' },
+              { id: 13, name: '数码配件' }
+            ]
+          },
+          {
+            id: 2,
+            name: '电脑办公',
+            children: [
+              { id: 21, name: '笔记本' },
+              { id: 22, name: '台式机' },
+              { id: 23, name: '办公设备' }
+            ]
+          },
+          {
+            id: 3,
+            name: '家用电器',
+            children: [
+              { id: 31, name: '大家电' },
+              { id: 32, name: '小家电' },
+              { id: 33, name: '厨房电器' }
+            ]
+          },
+          {
+            id: 4,
+            name: '服饰鞋包',
+            children: [
+              { id: 41, name: '男装' },
+              { id: 42, name: '女装' },
+              { id: 43, name: '运动鞋' }
+            ]
+          },
+          {
+            id: 5,
+            name: '美妆个护',
+            children: [
+              { id: 51, name: '面部护肤' },
+              { id: 52, name: '身体护理' },
+              { id: 53, name: '香水彩妆' }
+            ]
+          }
+        ],
+        currentCategory: null,
+        currentSubCategory: null
       }
     },
     computed: {
@@ -365,6 +446,46 @@
         navList().then(res => {
           this.navList = res.result
         })
+      },
+      handleCategoryCommand (command) {
+        if (command.type === 'parent') {
+          this.currentCategory = command.data
+          this.currentSubCategory = null
+          this.$router.push({
+            path: '/goods',
+            query: {
+              cid: command.data.id,
+              categoryName: command.data.name
+            }
+          })
+        }
+      },
+      handleSubCategoryClick (subCat, parentCat) {
+        this.currentCategory = parentCat
+        this.currentSubCategory = subCat
+        if (subCat) {
+          this.$router.push({
+            path: '/goods',
+            query: {
+              cid: subCat.id,
+              parentId: parentCat.id,
+              categoryName: parentCat.name,
+              subCategoryName: subCat.name
+            }
+          })
+        } else {
+          this.$router.push({
+            path: '/goods',
+            query: {
+              cid: parentCat.id,
+              categoryName: parentCat.name
+            }
+          })
+        }
+      },
+      resetCategory () {
+        this.currentCategory = null
+        this.currentSubCategory = null
       }
     },
     mounted () {
@@ -526,6 +647,19 @@
       // a:nth-child(3){
       //   width: 5vw;
       // }
+      .category-dropdown {
+        margin-left: 10px;
+        .el-dropdown-link {
+          color: #c8c8c8;
+          font-size: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          &:hover {
+            color: #fff;
+          }
+        }
+      }
     }
     .nav-aside {
       position: relative;
@@ -1004,6 +1138,7 @@
     .w {
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
     .nav-list2 {
       height: 28px;
@@ -1043,6 +1178,34 @@
         background: #bdbdbd;
       }
     }
+    .category-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      .category-title {
+        font-size: 14px;
+        color: #333;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+      .sub-category-item {
+        padding: 4px 12px;
+        margin: 0 5px;
+        font-size: 13px;
+        color: #666;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.3s;
+        &:hover {
+          color: #5683EA;
+          background: #f0f4ff;
+        }
+        &.active {
+          color: #fff;
+          background: #5683EA;
+        }
+      }
+    }
   }
 
   @media (min-width: 1px) {
@@ -1073,6 +1236,36 @@
     background: url("/static/images/cart-empty-new.png") no-repeat;
     background-size: cover;
 
+  }
+
+  .category-menu {
+    .category-item {
+      display: flex;
+      flex-direction: column;
+      .category-name {
+        font-weight: bold;
+        color: #333;
+        padding: 5px 0;
+      }
+      .sub-category {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 5px;
+        .sub-tag {
+          background: #f5f5f5;
+          padding: 4px 10px;
+          border-radius: 4px;
+          font-size: 12px;
+          color: #666;
+          cursor: pointer;
+          &:hover {
+            background: #5683EA;
+            color: #fff;
+          }
+        }
+      }
+    }
   }
 </style>
 

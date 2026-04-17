@@ -6,7 +6,10 @@ import {
   ADD_ANIMATION,
   SHOW_CART,
   REDUCE_CART,
-  EDIT_CART
+  EDIT_CART,
+  ADD_FAVORITE,
+  REMOVE_FAVORITE,
+  INIT_FAVORITE
 } from './mutation-types'
 import { setStore, getStore } from '../utils/storage'
 export default {
@@ -130,6 +133,39 @@ export default {
       state.userInfo = {...info}
     } else {
       state.userInfo = null
+    }
+  },
+  // 初始化收藏列表
+  [INIT_FAVORITE] (state) {
+    let initFavorite = getStore('favoriteList')
+    if (initFavorite) {
+      state.favoriteList = JSON.parse(initFavorite)
+    }
+  },
+  // 添加收藏
+  [ADD_FAVORITE] (state, {productId, salePrice, productName, productImg}) {
+    let favorites = state.favoriteList
+    let exist = favorites.find(item => item.productId === productId)
+    if (!exist) {
+      favorites.push({
+        productId,
+        salePrice,
+        productName,
+        productImg,
+        favoriteTime: new Date().getTime()
+      })
+      state.favoriteList = favorites
+      setStore('favoriteList', favorites)
+    }
+  },
+  // 取消收藏
+  [REMOVE_FAVORITE] (state, {productId}) {
+    let favorites = state.favoriteList
+    let index = favorites.findIndex(item => item.productId === productId)
+    if (index > -1) {
+      favorites.splice(index, 1)
+      state.favoriteList = favorites
+      setStore('favoriteList', favorites)
     }
   }
 }

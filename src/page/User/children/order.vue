@@ -2,6 +2,17 @@
   <div>
     <y-shelf title="我的订单">
       <div slot="content">
+        <div class="order-filter">
+          <span class="filter-label">订单状态：</span>
+          <el-select v-model="selectedStatus" placeholder="全部订单" @change="handleStatusChange" clearable>
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
+            </el-option>
+          </el-select>
+        </div>
         <div v-loading="loading" element-loading-text="加载中..." v-if="orderList.length" style="min-height: 10vw;">
           <div v-for="(item,i) in orderList" :key="i">
             <div class="gray-sub-title cart-title">
@@ -73,7 +84,7 @@
   </div>
 </template>
 <script>
-  import { orderList, delOrder } from '/api/goods'
+  import { orderList, delOrder, getOrderByStatus } from '/api/goods'
   import YShelf from '/components/shelf'
   import { getStore } from '/utils/storage'
   export default {
@@ -85,7 +96,17 @@
         loading: true,
         currentPage: 1,
         pageSize: 5,
-        total: 0
+        total: 0,
+        selectedStatus: '',
+        statusOptions: [
+          { value: '0', label: '待付款' },
+          { value: '1', label: '支付审核中' },
+          { value: '2', label: '待发货' },
+          { value: '3', label: '待收货' },
+          { value: '4', label: '交易成功' },
+          { value: '5', label: '交易关闭' },
+          { value: '6', label: '支付失败' }
+        ]
       }
     },
     methods: {
@@ -132,6 +153,7 @@
         }
       },
       _orderList () {
+        this.loading = true
         let params = {
           params: {
             userId: this.userId,
@@ -139,11 +161,36 @@
             page: this.currentPage
           }
         }
-        orderList(params).then(res => {
-          this.orderList = res.result.data
-          this.total = res.result.total
-          this.loading = false
-        })
+        if (this.selectedStatus !== '' && this.selectedStatus !== null) {
+          params.params.status = this.selectedStatus
+          getOrderByStatus(params).then(res => {
+            this._handleOrderResponse(res)
+          }).catch(() => {
+            this.loading = false
+            this.$message.error('获取订单列表失败')
+          })
+        } else {
+          orderList(params).then(res => {
+            this._handleOrderResponse(res)
+          }).catch(() => {
+            this.loading = false
+            this.$message.error('获取订单列表失败')
+          })
+        }
+      },
+      _handleOrderResponse (res) {
+        if (res.success) {
+          this.orderList = res.result.data || []
+          this.total = res.result.total || 0
+        } else {
+          this.orderList = []
+          this.total = 0
+        }
+        this.loading = false
+      },
+      handleStatusChange () {
+        this.currentPage = 1
+        this._orderList()
       },
       _delOrder (orderId, i) {
         let params = {
@@ -154,9 +201,12 @@
         delOrder(params).then(res => {
           if (res.success === true) {
             this.orderList.splice(i, 1)
+            this.$message.success('删除订单成功')
           } else {
             this.message('删除失败')
           }
+        }).catch(() => {
+          this.message('删除失败')
         })
       }
     },
@@ -171,6 +221,23 @@
 </script>
 <style lang="scss" scoped>
   @import "../../../assets/style/mixin";
+
+  .order-filter {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    .filter-label {
+      font-size: 14px;
+      color: #666;
+      margin-right: 10px;
+    }
+    .el-select {
+      width: 200px;
+    }
+  }
 
   .gray-sub-title {
     height: 38px;

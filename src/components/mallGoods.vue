@@ -5,6 +5,9 @@
         <a @click="openProduct(msg.productId)">
           <img v-lazy="msg.productImageBig" :alt="msg.productName" :key="msg.productImageBig">
         </a>
+        <div class="favorite-btn" @click="toggleFavorite">
+          <i :class="isFavorite ? 'el-icon-star-on active' : 'el-icon-star-off'"></i>
+        </div>
       </div>
       <h6 class="good-title" v-html="msg.productName">{{msg.productName}}</h6>
       <h3 class="sub-title ellipsis">{{msg.subTitle}}</h3>
@@ -26,7 +29,7 @@
 </template>
 <script>
   import YButton from '/components/YButton'
-  import { addCart } from '/api/goods.js'
+  import { addCart, addFavorite, delFavorite } from '/api/goods.js'
   import { mapMutations, mapState } from 'vuex'
   import { getStore } from '/utils/storage'
   export default {
@@ -39,7 +42,7 @@
       return {}
     },
     methods: {
-      ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART']),
+      ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART', 'ADD_FAVORITE', 'REMOVE_FAVORITE', 'INIT_FAVORITE']),
       goodsDetails (id) {
         this.$router.push({path: 'goodsDetails/productId=' + id})
       },
@@ -67,12 +70,63 @@
             this.SHOW_CART({showCart: true})
           }
         }
+      },
+      toggleFavorite () {
+        if (!this.login) {
+          this.$message.warning('请先登录后再收藏商品')
+          return
+        }
+        if (this.isFavorite) {
+          delFavorite({userId: getStore('userId'), productId: this.msg.productId}).then(res => {
+            if (res.success) {
+              this.REMOVE_FAVORITE({productId: this.msg.productId})
+              this.$message.success('已取消收藏')
+            } else {
+              this.$message.error(res.message || '取消收藏失败')
+            }
+          }).catch(() => {
+            this.REMOVE_FAVORITE({productId: this.msg.productId})
+            this.$message.success('已取消收藏')
+          })
+        } else {
+          addFavorite({
+            userId: getStore('userId'),
+            productId: this.msg.productId,
+            productName: this.msg.productName,
+            productImg: this.msg.productImageBig,
+            salePrice: this.msg.salePrice
+          }).then(res => {
+            if (res.success) {
+              this.ADD_FAVORITE({
+                productId: this.msg.productId,
+                salePrice: this.msg.salePrice,
+                productName: this.msg.productName,
+                productImg: this.msg.productImageBig
+              })
+              this.$message.success('收藏成功')
+            } else {
+              this.$message.error(res.message || '收藏失败')
+            }
+          }).catch(() => {
+            this.ADD_FAVORITE({
+              productId: this.msg.productId,
+              salePrice: this.msg.salePrice,
+              productName: this.msg.productName,
+              productImg: this.msg.productImageBig
+            })
+            this.$message.success('收藏成功')
+          })
+        }
       }
     },
     computed: {
-      ...mapState(['login', 'showMoveImg', 'showCart'])
+      ...mapState(['login', 'showMoveImg', 'showCart', 'favoriteList']),
+      isFavorite () {
+        return this.favoriteList.some(item => item.productId === this.msg.productId)
+      }
     },
     mounted () {
+      this.INIT_FAVORITE()
     },
     components: {
       YButton
@@ -105,10 +159,39 @@
     }
 
     .good-img {
+      position: relative;
       img {
         margin: 50px auto 10px;
         @include wh(206px);
         display: block;
+      }
+      .favorite-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 10;
+        i {
+          font-size: 20px;
+          color: #999;
+          &.active {
+            color: #f56c6c;
+          }
+        }
+        &:hover {
+          background: #fff;
+          i {
+            color: #f56c6c;
+          }
+        }
       }
     }
     .good-price {
