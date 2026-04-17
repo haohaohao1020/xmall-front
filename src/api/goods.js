@@ -87,3 +87,15 @@ export const getSearch = (params) => {
 export const getQuickSearch = (params) => {
   return http.fetchGet('/goods/quickSearch', params)
 }
+// 添加收藏
+export const addFavorite = (params) => {
+  return http.fetchPost('/member/addFavorite', params)
+}
+// 取消收藏
+export const deleteFavorite = (params) => {
+  return http.fetchPost('/member/delFavorite', params)
+}
+// 获取收藏列表
+export const getFavoriteList = (params) => {
+  return http.fetchGet('/member/favoriteList', params)
+}

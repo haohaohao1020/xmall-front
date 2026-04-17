@@ -135,8 +135,15 @@
                 <li>
                   <a @click="changGoods(-2)" :class="{active:choosePage===-2}">全部</a>
                 </li>
-                <li v-for="(item,i) in navList" :key="i">
-                  <a @click="changGoods(i, item)" :class="{active:i===choosePage}">{{item.picUrl}}</a>
+                <li class="category-item" v-for="(category, index) in categoryList" :key="index" @mouseenter="showSubCategory(index)" @mouseleave="hideSubCategory">
+                  <a @click="selectCategory(category, null)" :class="{active:selectedCategoryId === category.id}">{{category.name}}</a>
+                  <div class="sub-category-dropdown" v-show="activeCategoryIndex === index && category.children && category.children.length">
+                    <ul class="sub-category-list">
+                      <li v-for="(sub, subIndex) in category.children" :key="subIndex">
+                        <a @click="selectCategory(category, sub)" :class="{active:selectedSubCategoryId === sub.id}">{{sub.name}}</a>
+                      </li>
+                    </ul>
+                  </div>
                 </li>
               </ul>
               <div></div>
@@ -171,7 +178,63 @@
         searchResults: [],
         timeout: null,
         token: '',
-        navList: []
+        navList: [],
+        // 商品分类数据
+        categoryList: [
+          {
+            id: 1,
+            name: '手机数码',
+            children: [
+              {id: 101, name: '智能手机'},
+              {id: 102, name: '平板电脑'},
+              {id: 103, name: '智能穿戴'},
+              {id: 104, name: '手机配件'}
+            ]
+          },
+          {
+            id: 2,
+            name: '电脑办公',
+            children: [
+              {id: 201, name: '笔记本'},
+              {id: 202, name: '台式机'},
+              {id: 203, name: '游戏设备'},
+              {id: 204, name: '办公设备'}
+            ]
+          },
+          {
+            id: 3,
+            name: '家用电器',
+            children: [
+              {id: 301, name: '电视'},
+              {id: 302, name: '空调'},
+              {id: 303, name: '洗衣机'},
+              {id: 304, name: '冰箱'}
+            ]
+          },
+          {
+            id: 4,
+            name: '服装鞋帽',
+            children: [
+              {id: 401, name: '男装'},
+              {id: 402, name: '女装'},
+              {id: 403, name: '运动户外'},
+              {id: 404, name: '鞋靴'}
+            ]
+          },
+          {
+            id: 5,
+            name: '美妆护肤',
+            children: [
+              {id: 501, name: '面部护肤'},
+              {id: 502, name: '彩妆'},
+              {id: 503, name: '香水'},
+              {id: 504, name: '个人护理'}
+            ]
+          }
+        ],
+        activeCategoryIndex: -1,
+        selectedCategoryId: null,
+        selectedSubCategoryId: null
       }
     },
     computed: {
@@ -365,6 +428,37 @@
         navList().then(res => {
           this.navList = res.result
         })
+      },
+      showSubCategory (index) {
+        this.activeCategoryIndex = index
+      },
+      hideSubCategory () {
+        this.activeCategoryIndex = -1
+      },
+      selectCategory (category, subCategory) {
+        if (subCategory) {
+          this.selectedCategoryId = category.id
+          this.selectedSubCategoryId = subCategory.id
+          this.$router.push({
+            path: '/refreshgoods',
+            query: {
+              categoryId: category.id,
+              categoryName: category.name,
+              subCategoryId: subCategory.id,
+              subCategoryName: subCategory.name
+            }
+          })
+        } else {
+          this.selectedCategoryId = category.id
+          this.selectedSubCategoryId = null
+          this.$router.push({
+            path: '/refreshgoods',
+            query: {
+              categoryId: category.id,
+              categoryName: category.name
+            }
+          })
+        }
       }
     },
     mounted () {
@@ -1027,6 +1121,7 @@
           color: #666;
           &.active {
             font-weight: bold;
+            color: #5683EA;
           }
         }
         a:hover {
@@ -1041,6 +1136,42 @@
         width: 2px;
         height: 2px;
         background: #bdbdbd;
+      }
+      .category-item {
+        position: relative;
+        z-index: 100;
+        .sub-category-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          background: #fff;
+          border: 1px solid #e5e5e5;
+          border-radius: 4px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+          min-width: 120px;
+          margin-top: 5px;
+          .sub-category-list {
+            padding: 8px 0;
+            li {
+              padding: 0;
+              float: none;
+              &:before {
+                display: none;
+              }
+              a {
+                padding: 8px 16px;
+                line-height: 1.5;
+                &:hover {
+                  background: #f5f7fa;
+                }
+                &.active {
+                  color: #5683EA;
+                  background: #ecf5ff;
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
