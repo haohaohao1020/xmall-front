@@ -15,7 +15,8 @@ const state = {
   cartPositionT: 0, // 购物车位置
   cartPositionL: 0,
   receiveInCart: false, // 是否进入购物车
-  showCart: false // 是否显示购物车
+  showCart: false, // 是否显示购物车
+  favoriteList: [] // 收藏列表
 }
 
 export default new Vuex.Store({

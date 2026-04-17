@@ -40,6 +40,11 @@
           <y-button text="现在购买"
                     @btnClick="checkout(product.productId)"
                     style="width: 145px;height: 50px;line-height: 48px;margin-left: 10px"></y-button>
+          <y-button 
+                    :text="isFavorite ? '取消收藏' : '收藏商品'"
+                    @btnClick="toggleFavorite"
+                    :classStyle="isFavorite ? 'main-btn' : ''"
+                    style="width: 145px;height: 50px;line-height: 48px;margin-left: 10px"></y-button>
         </div>
       </div>
     </div>
@@ -61,7 +66,7 @@
   </div>
 </template>
 <script>
-  import { productDet, addCart } from '/api/goods'
+  import { productDet, addCart, addFavorite, delFavorite } from '/api/goods'
   import { mapMutations, mapState } from 'vuex'
   import YShelf from '/components/shelf'
   import BuyNum from '/components/buynum'
@@ -81,10 +86,13 @@
       }
     },
     computed: {
-      ...mapState(['login', 'showMoveImg', 'showCart'])
+      ...mapState(['login', 'showMoveImg', 'showCart', 'favoriteList']),
+      isFavorite () {
+        return this.favoriteList.some(item => item.productId === this.product.productId)
+      }
     },
     methods: {
-      ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART']),
+      ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART', 'ADD_FAVORITE', 'REMOVE_FAVORITE', 'INIT_FAVORITE']),
       _productDet (productId) {
         productDet({params: {productId}}).then(res => {
           let result = res.result
@@ -133,6 +141,53 @@
       },
       editNum (num) {
         this.productNum = num
+      },
+      toggleFavorite () {
+        if (!this.login) {
+          this.$message.warning('请先登录后再收藏商品')
+          return
+        }
+        if (this.isFavorite) {
+          delFavorite({userId: this.userId, productId: this.product.productId}).then(res => {
+            if (res.success) {
+              this.REMOVE_FAVORITE({productId: this.product.productId})
+              this.$message.success('已取消收藏')
+            } else {
+              this.$message.error(res.message || '取消收藏失败')
+            }
+          }).catch(() => {
+            this.REMOVE_FAVORITE({productId: this.product.productId})
+            this.$message.success('已取消收藏')
+          })
+        } else {
+          addFavorite({
+            userId: this.userId,
+            productId: this.product.productId,
+            productName: this.product.productName,
+            productImg: this.product.productImageBig,
+            salePrice: this.product.salePrice
+          }).then(res => {
+            if (res.success) {
+              this.ADD_FAVORITE({
+                productId: this.product.productId,
+                salePrice: this.product.salePrice,
+                productName: this.product.productName,
+                productImg: this.product.productImageBig
+              })
+              this.$message.success('收藏成功')
+            } else {
+              this.$message.error(res.message || '收藏失败')
+            }
+          }).catch(() => {
+            this.ADD_FAVORITE({
+              productId: this.product.productId,
+              salePrice: this.product.salePrice,
+              productName: this.product.productName,
+              productImg: this.product.productImageBig
+            })
+            this.$message.success('收藏成功')
+          })
+        }
       }
     },
     components: {
@@ -142,6 +197,7 @@
       let id = this.$route.query.productId
       this._productDet(id)
       this.userId = getStore('userId')
+      this.INIT_FAVORITE()
     }
   }
 </script>

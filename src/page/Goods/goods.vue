@@ -62,7 +62,7 @@
   </div>
 </template>
 <script>
-  import { getAllGoods } from '/api/goods.js'
+  import { getAllGoods, getGoodsByCategory } from '/api/goods.js'
   import { recommend } from '/api/index.js'
   import mallGoods from '/components/mallGoods'
   import YButton from '/components/YButton'
@@ -84,7 +84,8 @@
         sort: '',
         currentPage: 1,
         total: 0,
-        pageSize: 20
+        pageSize: 20,
+        currentCid: null
       }
     },
     methods: {
@@ -100,6 +101,7 @@
       },
       _getAllGoods () {
         let cid = this.$route.query.cid
+        this.currentCid = cid
         if (this.min !== '') {
           this.min = Math.floor(this.min)
         }
@@ -112,24 +114,39 @@
             size: this.pageSize,
             sort: this.sort,
             priceGt: this.min,
-            priceLte: this.max,
-            cid: cid
+            priceLte: this.max
           }
         }
-        getAllGoods(params).then(res => {
-          if (res.success === true) {
-            this.total = res.result.total
-            this.goods = res.result.data
-            this.noResult = false
-            if (this.total === 0) {
-              this.noResult = true
-            }
-            this.error = false
-          } else {
-            this.error = true
-          }
-          this.loading = false
-        })
+        if (cid) {
+          params.params.cid = cid
+          getGoodsByCategory(params).then(res => {
+            this._handleGoodsResponse(res)
+          }).catch(() => {
+            this._handleGoodsError()
+          })
+        } else {
+          getAllGoods(params).then(res => {
+            this._handleGoodsResponse(res)
+          }).catch(() => {
+            this._handleGoodsError()
+          })
+        }
+      },
+      _handleGoodsResponse (res) {
+        if (res.success === true) {
+          this.total = res.result.total
+          this.goods = res.result.data || []
+          this.noResult = this.total === 0
+          this.error = false
+        } else {
+          this.error = true
+        }
+        this.loading = false
+      },
+      _handleGoodsError () {
+        this.error = true
+        this.loading = false
+        this.$message.error('获取商品列表失败')
       },
       // 默认排序
       reset () {
@@ -150,9 +167,12 @@
     },
     watch: {
       $route (to, from) {
-        if (to.fullPath.indexOf('/goods?cid=') >= 0) {
-          this.cId = to.query.cid
-          this._getAllGoods()
+        if (to.fullPath.indexOf('/goods') >= 0) {
+          let newCid = to.query.cid
+          if (newCid !== this.currentCid) {
+            this.currentPage = 1
+            this._getAllGoods()
+          }
         }
       }
     },
