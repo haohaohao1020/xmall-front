@@ -87,3 +87,27 @@ export const getSearch = (params) => {
 export const getQuickSearch = (params) => {
   return http.fetchGet('/goods/quickSearch', params)
 }
+// 获取商品分类列表
+export const getCategoryList = (params) => {
+  return http.fetchGet('/goods/categoryList', params)
+}
+// 根据分类ID获取商品列表
+export const getGoodsByCategory = (params) => {
+  return http.fetchGet('/goods/byCategory', params)
+}
+// 添加收藏
+export const addFavorite = (params) => {
+  return http.fetchPost('/member/addFavorite', params)
+}
+// 取消收藏
+export const delFavorite = (params) => {
+  return http.fetchPost('/member/delFavorite', params)
+}
+// 获取收藏列表
+export const getFavoriteList = (params) => {
+  return http.fetchGet('/member/favoriteList', params)
+}
+// 检查是否已收藏
+export const checkFavorite = (params) => {
+  return http.fetchGet('/member/checkFavorite', params)
+}
