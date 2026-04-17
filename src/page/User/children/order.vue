@@ -2,6 +2,18 @@
   <div>
     <y-shelf title="我的订单">
       <div slot="content">
+        <!-- 订单状态筛选 -->
+        <div class="order-filter">
+          <span class="filter-label">订单状态：</span>
+          <el-select v-model="selectedStatus" placeholder="全部订单" @change="handleStatusChange" size="small">
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
+            </el-option>
+          </el-select>
+        </div>
         <div v-loading="loading" element-loading-text="加载中..." v-if="orderList.length" style="min-height: 10vw;">
           <div v-for="(item,i) in orderList" :key="i">
             <div class="gray-sub-title cart-title">
@@ -85,7 +97,18 @@
         loading: true,
         currentPage: 1,
         pageSize: 5,
-        total: 0
+        total: 0,
+        selectedStatus: '',
+        statusOptions: [
+          { value: '', label: '全部订单' },
+          { value: '0', label: '待付款' },
+          { value: '1', label: '支付审核中' },
+          { value: '2', label: '待发货' },
+          { value: '3', label: '待收货' },
+          { value: '4', label: '交易成功' },
+          { value: '5', label: '交易关闭' },
+          { value: '6', label: '支付失败' }
+        ]
       }
     },
     methods: {
@@ -100,6 +123,10 @@
       },
       handleCurrentChange (val) {
         this.currentPage = val
+        this._orderList()
+      },
+      handleStatusChange (val) {
+        this.currentPage = 1
         this._orderList()
       },
       orderPayment (orderId) {
@@ -136,7 +163,8 @@
           params: {
             userId: this.userId,
             size: this.pageSize,
-            page: this.currentPage
+            page: this.currentPage,
+            status: this.selectedStatus
           }
         }
         orderList(params).then(res => {
@@ -171,6 +199,19 @@
 </script>
 <style lang="scss" scoped>
   @import "../../../assets/style/mixin";
+
+  .order-filter {
+    padding: 15px 24px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e6e6e6;
+    display: flex;
+    align-items: center;
+    .filter-label {
+      font-size: 14px;
+      color: #666;
+      margin-right: 10px;
+    }
+  }
 
   .gray-sub-title {
     height: 38px;

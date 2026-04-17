@@ -5,6 +5,11 @@
         <a @click="openProduct(msg.productId)">
           <img v-lazy="msg.productImageBig" :alt="msg.productName" :key="msg.productImageBig">
         </a>
+        <!-- 收藏按钮 -->
+        <div class="favorite-btn" @click.stop="toggleFavorite">
+          <i class="el-icon-star-on" v-if="isFavorite"></i>
+          <i class="el-icon-star-off" v-else></i>
+        </div>
       </div>
       <h6 class="good-title" v-html="msg.productName">{{msg.productName}}</h6>
       <h3 class="sub-title ellipsis">{{msg.subTitle}}</h3>
@@ -26,9 +31,9 @@
 </template>
 <script>
   import YButton from '/components/YButton'
-  import { addCart } from '/api/goods.js'
+  import { addCart, addFavorite, delFavorite, checkFavorite } from '/api/goods.js'
   import { mapMutations, mapState } from 'vuex'
-  import { getStore } from '/utils/storage'
+  import { getStore, setStore } from '/utils/storage'
   export default {
     props: {
       msg: {
@@ -36,7 +41,19 @@
       }
     },
     data () {
-      return {}
+      return {
+        isFavorite: false
+      }
+    },
+    created () {
+      this.checkFavorite()
+    },
+    watch: {
+      'msg.productId' (newVal) {
+        if (newVal) {
+          this.checkFavorite()
+        }
+      }
     },
     methods: {
       ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART']),
@@ -66,6 +83,119 @@
           if (!this.showCart) {
             this.SHOW_CART({showCart: true})
           }
+        }
+      },
+      // 检查是否已收藏
+      checkFavorite () {
+        // 先检查本地缓存
+        let favorites = getStore('favorites') || '[]'
+        favorites = JSON.parse(favorites)
+        this.isFavorite = favorites.some(item => item.productId === this.msg.productId)
+
+        // 如果已登录，从服务器获取收藏状态
+        if (this.login) {
+          let params = {
+            params: {
+              userId: getStore('userId'),
+              productId: this.msg.productId
+            }
+          }
+          checkFavorite(params).then(res => {
+            if (res.success) {
+              this.isFavorite = res.result.isFavorite
+              // 更新本地缓存
+              if (this.isFavorite) {
+                if (!favorites.some(item => item.productId === this.msg.productId)) {
+                  favorites.push({
+                    productId: this.msg.productId,
+                    productName: this.msg.productName,
+                    productImageBig: this.msg.productImageBig,
+                    salePrice: this.msg.salePrice,
+                    subTitle: this.msg.subTitle,
+                    addTime: new Date().getTime()
+                  })
+                  setStore('favorites', JSON.stringify(favorites))
+                }
+              }
+            }
+          }).catch(() => {
+            // 使用本地数据
+          })
+        }
+      },
+      // 切换收藏状态
+      toggleFavorite () {
+        if (!this.login) {
+          this.$message.warning('请先登录后再收藏商品')
+          this.$router.push('/login')
+          return
+        }
+
+        let favorites = getStore('favorites') || '[]'
+        favorites = JSON.parse(favorites)
+        const index = favorites.findIndex(item => item.productId === this.msg.productId)
+        
+        if (index > -1) {
+          // 取消收藏 - 调用接口
+          let params = {
+            userId: getStore('userId'),
+            productId: this.msg.productId
+          }
+          delFavorite(params).then(res => {
+            if (res.success) {
+              favorites.splice(index, 1)
+              this.isFavorite = false
+              setStore('favorites', JSON.stringify(favorites))
+              this.$message.success('已取消收藏')
+            } else {
+              this.$message.error(res.message || '取消收藏失败')
+            }
+          }).catch(() => {
+            // 接口失败，本地处理
+            favorites.splice(index, 1)
+            this.isFavorite = false
+            setStore('favorites', JSON.stringify(favorites))
+            this.$message.success('已取消收藏')
+          })
+        } else {
+          // 添加收藏 - 调用接口
+          let params = {
+            userId: getStore('userId'),
+            productId: this.msg.productId,
+            productName: this.msg.productName,
+            productImageBig: this.msg.productImageBig,
+            salePrice: this.msg.salePrice
+          }
+          addFavorite(params).then(res => {
+            if (res.success) {
+              favorites.push({
+                productId: this.msg.productId,
+                productName: this.msg.productName,
+                productImageBig: this.msg.productImageBig,
+                salePrice: this.msg.salePrice,
+                subTitle: this.msg.subTitle,
+                addTime: new Date().getTime()
+              })
+              this.isFavorite = true
+              setStore('favorites', JSON.stringify(favorites))
+              this.$message.success('收藏成功')
+            } else {
+              this.$message.error(res.message || '收藏失败')
+            }
+          }).catch(() => {
+            // 接口失败，本地处理
+            favorites.push({
+              productId: this.msg.productId,
+              productName: this.msg.productName,
+              productImageBig: this.msg.productImageBig,
+              salePrice: this.msg.salePrice,
+              subTitle: this.msg.subTitle,
+              addTime: new Date().getTime()
+            })
+            this.isFavorite = true
+            setStore('favorites', JSON.stringify(favorites))
+            this.$message.success('收藏成功')
+          })
         }
       }
     },
@@ -105,10 +235,42 @@
     }
 
     .good-img {
+      position: relative;
       img {
         margin: 50px auto 10px;
         @include wh(206px);
         display: block;
+      }
+      .favorite-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+        z-index: 10;
+        &:hover {
+          transform: scale(1.1);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        i {
+          font-size: 18px;
+          color: #999;
+          transition: all 0.3s;
+        }
+        i.el-icon-star-on {
+          color: #ff6700;
+        }
+        &:hover i {
+          color: #ff6700;
+        }
       }
     }
     .good-price {

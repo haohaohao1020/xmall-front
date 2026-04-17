@@ -40,6 +40,12 @@
           <y-button text="现在购买"
                     @btnClick="checkout(product.productId)"
                     style="width: 145px;height: 50px;line-height: 48px;margin-left: 10px"></y-button>
+          <y-button :text="isFavorite ? '已收藏' : '收藏'"
+                    @btnClick="toggleFavorite"
+                    :classStyle="isFavorite ? 'main-btn' : ''"
+                    style="width: 100px;height: 50px;line-height: 48px;margin-left: 10px">
+            <i :class="isFavorite ? 'el-icon-star-on' : 'el-icon-star-off'" style="margin-right: 5px;"></i>
+          </y-button>
         </div>
       </div>
     </div>
@@ -61,12 +67,12 @@
   </div>
 </template>
 <script>
-  import { productDet, addCart } from '/api/goods'
+  import { productDet, addCart, addFavorite, delFavorite, checkFavorite } from '/api/goods'
   import { mapMutations, mapState } from 'vuex'
   import YShelf from '/components/shelf'
   import BuyNum from '/components/buynum'
   import YButton from '/components/YButton'
-  import { getStore } from '/utils/storage'
+  import { getStore, setStore } from '/utils/storage'
   export default {
     data () {
       return {
@@ -77,11 +83,19 @@
           salePrice: 0
         },
         productNum: 1,
-        userId: ''
+        userId: '',
+        isFavorite: false
       }
     },
     computed: {
       ...mapState(['login', 'showMoveImg', 'showCart'])
+    },
+    watch: {
+      'product.productId' (newVal) {
+        if (newVal) {
+          this.checkFavorite()
+        }
+      }
     },
     methods: {
       ...mapMutations(['ADD_CART', 'ADD_ANIMATION', 'SHOW_CART']),
@@ -133,6 +147,119 @@
       },
       editNum (num) {
         this.productNum = num
+      },
+      // 检查是否已收藏
+      checkFavorite () {
+        // 先检查本地缓存
+        let favorites = getStore('favorites') || '[]'
+        favorites = JSON.parse(favorites)
+        this.isFavorite = favorites.some(item => item.productId === this.product.productId)
+
+        // 如果已登录，从服务器获取收藏状态
+        if (this.login && this.product.productId) {
+          let params = {
+            params: {
+              userId: this.userId,
+              productId: this.product.productId
+            }
+          }
+          checkFavorite(params).then(res => {
+            if (res.success) {
+              this.isFavorite = res.result.isFavorite
+              // 更新本地缓存
+              if (this.isFavorite) {
+                if (!favorites.some(item => item.productId === this.product.productId)) {
+                  favorites.push({
+                    productId: this.product.productId,
+                    productName: this.product.productName,
+                    productImageBig: this.product.productImageBig,
+                    salePrice: this.product.salePrice,
+                    subTitle: this.product.subTitle,
+                    addTime: new Date().getTime()
+                  })
+                  setStore('favorites', JSON.stringify(favorites))
+                }
+              }
+            }
+          }).catch(() => {
+            // 使用本地数据
+          })
+        }
+      },
+      // 切换收藏状态
+      toggleFavorite () {
+        if (!this.login) {
+          this.$message.warning('请先登录后再收藏商品')
+          this.$router.push('/login')
+          return
+        }
+
+        let favorites = getStore('favorites') || '[]'
+        favorites = JSON.parse(favorites)
+        const index = favorites.findIndex(item => item.productId === this.product.productId)
+        
+        if (index > -1) {
+          // 取消收藏 - 调用接口
+          let params = {
+            userId: this.userId,
+            productId: this.product.productId
+          }
+          delFavorite(params).then(res => {
+            if (res.success) {
+              favorites.splice(index, 1)
+              this.isFavorite = false
+              setStore('favorites', JSON.stringify(favorites))
+              this.$message.success('已取消收藏')
+            } else {
+              this.$message.error(res.message || '取消收藏失败')
+            }
+          }).catch(() => {
+            // 接口失败，本地处理
+            favorites.splice(index, 1)
+            this.isFavorite = false
+            setStore('favorites', JSON.stringify(favorites))
+            this.$message.success('已取消收藏')
+          })
+        } else {
+          // 添加收藏 - 调用接口
+          let params = {
+            userId: this.userId,
+            productId: this.product.productId,
+            productName: this.product.productName,
+            productImageBig: this.product.productImageBig,
+            salePrice: this.product.salePrice
+          }
+          addFavorite(params).then(res => {
+            if (res.success) {
+              favorites.push({
+                productId: this.product.productId,
+                productName: this.product.productName,
+                productImageBig: this.product.productImageBig,
+                salePrice: this.product.salePrice,
+                subTitle: this.product.subTitle,
+                addTime: new Date().getTime()
+              })
+              this.isFavorite = true
+              setStore('favorites', JSON.stringify(favorites))
+              this.$message.success('收藏成功')
+            } else {
+              this.$message.error(res.message || '收藏失败')
+            }
+          }).catch(() => {
+            // 接口失败，本地处理
+            favorites.push({
+              productId: this.product.productId,
+              productName: this.product.productName,
+              productImageBig: this.product.productImageBig,
+              salePrice: this.product.salePrice,
+              subTitle: this.product.subTitle,
+              addTime: new Date().getTime()
+            })
+            this.isFavorite = true
+            setStore('favorites', JSON.stringify(favorites))
+            this.$message.success('收藏成功')
+          })
+        }
       }
     },
     components: {

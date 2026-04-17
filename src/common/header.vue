@@ -21,6 +21,9 @@
                 :on-icon-click="handleIconClick"
                 @keydown.enter.native="handleIconClick">
               </el-autocomplete>
+              <div class="category-btn" @mouseenter="toggleCategoryDropdown(true)" @mouseleave="toggleCategoryDropdown(false)">
+                <a :class="{active: showCategoryDropdown}">商品分类<i class="el-icon-arrow-down"></i></a>
+              </div>
               <router-link to="/goods"><a @click="changePage(2)">全部商品</a></router-link>
               <router-link to="/thanks"><a @click="changePage(4)">捐赠</a></router-link>
               <!-- <router-link to="/">Smartisan M1 / M1L</router-link>
@@ -135,11 +138,46 @@
                 <li>
                   <a @click="changGoods(-2)" :class="{active:choosePage===-2}">全部</a>
                 </li>
-                <li v-for="(item,i) in navList" :key="i">
+                <li v-for="(item,i) in navList" :key="i" class="category-item">
                   <a @click="changGoods(i, item)" :class="{active:i===choosePage}">{{item.picUrl}}</a>
                 </li>
               </ul>
               <div></div>
+            </div>
+          </div>
+        </div>
+        <!-- 商品分类下拉菜单 -->
+        <div class="category-dropdown" v-if="showCategoryDropdown" :class="{fixed:st}">
+          <div class="w">
+            <div class="category-menu">
+              <div class="category-level1">
+                <div 
+                  v-for="(cat1, index) in categoryList" 
+                  :key="index"
+                  class="cat1-item"
+                  :class="{active: activeCategory1 === index}"
+                  @mouseenter="selectCategory1(index)"
+                >
+                  <span>{{cat1.name}}</span>
+                  <i class="el-icon-arrow-right" v-if="cat1.children && cat1.children.length"></i>
+                </div>
+              </div>
+              <div class="category-level2" v-if="activeCategory1 !== null && categoryList[activeCategory1] && categoryList[activeCategory1].children">
+                <div class="cat2-title">{{categoryList[activeCategory1].name}}</div>
+                <div class="cat2-list">
+                  <a 
+                    v-for="(cat2, idx) in categoryList[activeCategory1].children" 
+                    :key="idx"
+                    class="cat2-item"
+                    @click="searchByCategory(cat2.id, 2)"
+                  >
+                    {{cat2.name}}
+                  </a>
+                </div>
+                <div class="cat2-view-all" @click="searchByCategory(categoryList[activeCategory1].id, 1)">
+                  查看全部 {{categoryList[activeCategory1].name}} 商品 >
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -150,7 +188,7 @@
 <script>
   import YButton from '/components/YButton'
   import { mapMutations, mapState } from 'vuex'
-  import { getCartList, cartDel, getQuickSearch } from '/api/goods'
+  import { getCartList, cartDel, getQuickSearch, getCategoryList, getGoodsByCategory } from '/api/goods'
   import { loginOut, navList } from '/api/index'
   import { setStore, getStore, removeStore } from '/utils/storage'
   // import store from '../store/'
@@ -171,7 +209,78 @@
         searchResults: [],
         timeout: null,
         token: '',
-        navList: []
+        navList: [],
+        // 商品分类相关
+        showCategoryDropdown: false,
+        activeCategory1: 0,
+        categoryList: [
+          {
+            id: 1,
+            name: '手机数码',
+            children: [
+              { id: 11, name: '智能手机' },
+              { id: 12, name: '平板电脑' },
+              { id: 13, name: '智能手表' },
+              { id: 14, name: '耳机音箱' },
+              { id: 15, name: '数码配件' }
+            ]
+          },
+          {
+            id: 2,
+            name: '电脑办公',
+            children: [
+              { id: 21, name: '笔记本电脑' },
+              { id: 22, name: '台式电脑' },
+              { id: 23, name: '显示器' },
+              { id: 24, name: '键盘鼠标' },
+              { id: 25, name: '办公设备' }
+            ]
+          },
+          {
+            id: 3,
+            name: '家用电器',
+            children: [
+              { id: 31, name: '电视' },
+              { id: 32, name: '空调' },
+              { id: 33, name: '冰箱' },
+              { id: 34, name: '洗衣机' },
+              { id: 35, name: '厨房电器' }
+            ]
+          },
+          {
+            id: 4,
+            name: '服装服饰',
+            children: [
+              { id: 41, name: '男装' },
+              { id: 42, name: '女装' },
+              { id: 43, name: '童装' },
+              { id: 44, name: '鞋靴' },
+              { id: 45, name: '箱包' }
+            ]
+          },
+          {
+            id: 5,
+            name: '家居日用',
+            children: [
+              { id: 51, name: '家具' },
+              { id: 52, name: '家纺' },
+              { id: 53, name: '厨具' },
+              { id: 54, name: '灯具' },
+              { id: 55, name: '生活用品' }
+            ]
+          },
+          {
+            id: 6,
+            name: '美妆个护',
+            children: [
+              { id: 61, name: '面部护肤' },
+              { id: 62, name: '彩妆香水' },
+              { id: 63, name: '身体护理' },
+              { id: 64, name: '口腔护理' },
+              { id: 65, name: '美发护发' }
+            ]
+          }
+        ]
       }
     },
     computed: {
@@ -364,6 +473,55 @@
       _getNavList () {
         navList().then(res => {
           this.navList = res.result
+        })
+      },
+      // 商品分类相关方法
+      selectCategory1 (index) {
+        this.activeCategory1 = index
+      },
+      searchByCategory (cid, level) {
+        this.showCategoryDropdown = false
+        // 调用接口根据分类ID获取商品
+        let params = {
+          params: {
+            categoryId: cid,
+            page: 1,
+            size: 20
+          }
+        }
+        getGoodsByCategory(params).then(res => {
+          if (res.success) {
+            // 跳转到商品列表页，带上分类ID
+            this.$router.push({
+              path: '/goods',
+              query: { cid: cid, cname: level === 1 ? this.categoryList[this.activeCategory1].name : '' }
+            })
+          }
+        }).catch(() => {
+          // 即使接口失败也跳转
+          this.$router.push({
+            path: '/goods',
+            query: { cid: cid }
+          })
+        })
+      },
+      toggleCategoryDropdown (show) {
+        this.showCategoryDropdown = show
+        if (show) {
+          this.activeCategory1 = 0
+          // 获取分类列表
+          this._getCategoryList()
+        }
+      },
+      // 获取商品分类列表
+      _getCategoryList () {
+        getCategoryList().then(res => {
+          if (res.success && res.result && res.result.length > 0) {
+            this.categoryList = res.result
+          }
+          // 如果接口返回失败或为空，使用默认数据
+        }).catch(() => {
+          // 使用默认数据
         })
       }
     },
@@ -1073,6 +1231,110 @@
     background: url("/static/images/cart-empty-new.png") no-repeat;
     background-size: cover;
 
+  }
+
+  // 商品分类按钮
+  .category-btn {
+    position: relative;
+    a {
+      cursor: pointer;
+      i {
+        margin-left: 5px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  // 商品分类下拉菜单
+  .category-dropdown {
+    position: absolute;
+    top: 190px;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    background: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, .1);
+    border-top: 1px solid #e6e6e6;
+    &.fixed {
+      position: fixed;
+      top: 60px;
+    }
+    .w {
+      position: relative;
+    }
+    .category-menu {
+      display: flex;
+      min-height: 400px;
+      background: #fff;
+    }
+    .category-level1 {
+      width: 200px;
+      background: #f7f7f7;
+      padding: 15px 0;
+      .cat1-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #666;
+        transition: all .2s;
+        i {
+          font-size: 12px;
+          color: #999;
+        }
+        &:hover, &.active {
+          background: #fff;
+          color: #d44d44;
+          i {
+            color: #d44d44;
+          }
+        }
+      }
+    }
+    .category-level2 {
+      flex: 1;
+      padding: 20px 30px;
+      .cat2-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+      }
+      .cat2-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        .cat2-item {
+          display: inline-block;
+          padding: 8px 20px;
+          background: #f5f5f5;
+          border-radius: 4px;
+          font-size: 13px;
+          color: #666;
+          cursor: pointer;
+          transition: all .2s;
+          &:hover {
+            background: #d44d44;
+            color: #fff;
+          }
+        }
+      }
+      .cat2-view-all {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px dashed #eee;
+        font-size: 14px;
+        color: #d44d44;
+        cursor: pointer;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
   }
 </style>
 
