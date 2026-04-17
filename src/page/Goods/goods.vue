@@ -84,7 +84,8 @@
         sort: '',
         currentPage: 1,
         total: 0,
-        pageSize: 20
+        pageSize: 20,
+        currentCategory: ''
       }
     },
     methods: {
@@ -100,6 +101,15 @@
       },
       _getAllGoods () {
         let cid = this.$route.query.cid
+        let categoryId = this.$route.query.categoryId
+        let subCategoryId = this.$route.query.subCategoryId
+        let categoryName = this.$route.query.categoryName
+        let subCategoryName = this.$route.query.subCategoryName
+        if (categoryName) {
+          this.currentCategory = categoryName + (subCategoryName ? ' - ' + subCategoryName : '')
+        } else {
+          this.currentCategory = ''
+        }
         if (this.min !== '') {
           this.min = Math.floor(this.min)
         }
@@ -113,7 +123,9 @@
             sort: this.sort,
             priceGt: this.min,
             priceLte: this.max,
-            cid: cid
+            cid: cid || categoryId,
+            categoryId: categoryId,
+            subCategoryId: subCategoryId
           }
         }
         getAllGoods(params).then(res => {

@@ -2,8 +2,21 @@
   <div>
     <y-shelf title="我的订单">
       <div slot="content">
-        <div v-loading="loading" element-loading-text="加载中..." v-if="orderList.length" style="min-height: 10vw;">
-          <div v-for="(item,i) in orderList" :key="i">
+        <div class="order-search-bar">
+          <span style="margin-right: 10px;">订单状态：</span>
+          <el-select v-model="selectedOrderStatus" placeholder="请选择订单状态" style="width: 200px;" @change="filterOrders">
+            <el-option label="全部" value=""></el-option>
+            <el-option label="待付款" value="0"></el-option>
+            <el-option label="支付审核中" value="1"></el-option>
+            <el-option label="待发货" value="2"></el-option>
+            <el-option label="待收货" value="3"></el-option>
+            <el-option label="交易成功" value="4"></el-option>
+            <el-option label="交易关闭" value="5"></el-option>
+            <el-option label="支付失败" value="6"></el-option>
+          </el-select>
+        </div>
+        <div v-loading="loading" element-loading-text="加载中..." v-if="filteredOrderList.length" style="min-height: 10vw;">
+          <div v-for="(item,i) in filteredOrderList" :key="i">
             <div class="gray-sub-title cart-title">
               <div class="first">
                 <div>
@@ -54,7 +67,7 @@
         </div>
         <div v-loading="loading" element-loading-text="加载中..." class="no-info" v-else>
           <div style="padding: 100px 0;text-align: center">
-            你还未创建过订单
+            {{selectedOrderStatus ? '该状态下暂无订单' : '你还未创建过订单'}}
           </div>
         </div>
       </div>
@@ -85,7 +98,16 @@
         loading: true,
         currentPage: 1,
         pageSize: 5,
-        total: 0
+        total: 0,
+        selectedOrderStatus: ''
+      }
+    },
+    computed: {
+      filteredOrderList () {
+        if (!this.selectedOrderStatus) {
+          return this.orderList
+        }
+        return this.orderList.filter(item => item.orderStatus === this.selectedOrderStatus)
       }
     },
     methods: {
@@ -93,6 +115,10 @@
         this.$message.error({
           message: m
         })
+      },
+      filterOrders () {
+        this.currentPage = 1
+        this._orderList()
       },
       handleSizeChange (val) {
         this.pageSize = val
@@ -136,12 +162,21 @@
           params: {
             userId: this.userId,
             size: this.pageSize,
-            page: this.currentPage
+            page: this.currentPage,
+            orderStatus: this.selectedOrderStatus
           }
         }
         orderList(params).then(res => {
-          this.orderList = res.result.data
-          this.total = res.result.total
+          if (res.success) {
+            this.orderList = res.result.data || []
+            this.total = res.result.total
+          } else {
+            this.orderList = []
+            this.total = 0
+          }
+          this.loading = false
+        }).catch(() => {
+          this.orderList = []
           this.loading = false
         })
       },
@@ -171,6 +206,15 @@
 </script>
 <style lang="scss" scoped>
   @import "../../../assets/style/mixin";
+
+  .order-search-bar {
+    padding: 15px 24px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
 
   .gray-sub-title {
     height: 38px;
